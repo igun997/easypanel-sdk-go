@@ -3,8 +3,10 @@ package easypanel
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -174,6 +176,50 @@ func TestServicesEnable(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestServicesStop(t *testing.T) {
+	params := SelectService{
+		ProjectName: "proj",
+		ServiceName: "svc",
+	}
+
+	client := setupTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/api/trpc/services.app.stopService", r.URL.Path)
+		assert.Equal(t, "test-token", r.Header.Get("Authorization"))
+
+		var body SelectService
+		decodeTRPCBody(t, r, &body)
+		assert.Equal(t, params, body)
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	err := client.Services.Stop(context.Background(), ServiceTypeApp, params)
+	require.NoError(t, err)
+}
+
+func TestServicesRestart(t *testing.T) {
+	params := SelectService{
+		ProjectName: "proj",
+		ServiceName: "svc",
+	}
+
+	client := setupTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/api/trpc/services.app.restartService", r.URL.Path)
+		assert.Equal(t, "test-token", r.Header.Get("Authorization"))
+
+		var body SelectService
+		decodeTRPCBody(t, r, &body)
+		assert.Equal(t, params, body)
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	err := client.Services.Restart(context.Background(), ServiceTypeApp, params)
+	require.NoError(t, err)
+}
+
 func TestServicesUpdateEnv(t *testing.T) {
 	params := UpdateEnv{
 		SelectService: SelectService{
@@ -280,4 +326,109 @@ func TestServicesGetServiceLogs(t *testing.T) {
 	resp, err := client.Services.GetServiceLogs(context.Background(), params)
 	require.NoError(t, err)
 	assert.Equal(t, wantLogs, resp.Result.Data.JSON)
+}
+
+func TestServicesStreamLogs(t *testing.T) {
+	upgrader := websocket.Upgrader{}
+
+	messages := []LogMessage{
+		{Output: "2024-01-01T00:00:00Z service started\r\n"},
+		{Output: "2024-01-01T00:00:01Z listening on :8080\r\n"},
+		{Output: "2024-01-01T00:00:02Z request received\r\n"},
+	}
+
+	var capturedToken, capturedService, capturedCompose string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/ws/serviceLogs", r.URL.Path)
+
+		capturedToken = r.URL.Query().Get("token")
+		capturedService = r.URL.Query().Get("service")
+		capturedCompose = r.URL.Query().Get("compose")
+
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Fatalf("upgrade: %v", err)
+			return
+		}
+		defer conn.Close()
+
+		for _, msg := range messages {
+			if err := conn.WriteJSON(msg); err != nil {
+				return
+			}
+		}
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	}))
+	defer server.Close()
+
+	client := New(Config{
+		Endpoint: server.URL,
+		Token:    "test-token",
+	})
+
+	ctx := context.Background()
+	ch, err := client.Services.StreamLogs(ctx, StreamLogsParams{
+		ProjectName: "myproj",
+		ServiceName: "web",
+		Token:       "deploy-token-abc",
+		Compose:     false,
+	})
+	require.NoError(t, err)
+
+	var received []LogMessage
+	for msg := range ch {
+		received = append(received, msg)
+	}
+
+	assert.Equal(t, messages, received)
+	assert.Equal(t, "deploy-token-abc", capturedToken)
+	assert.Equal(t, "myproj_web", capturedService)
+	assert.Equal(t, "false", capturedCompose)
+}
+
+func TestServicesStreamLogs_ContextCancel(t *testing.T) {
+	upgrader := websocket.Upgrader{}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		// Keep sending messages until the connection is closed.
+		for {
+			err := conn.WriteJSON(LogMessage{Output: "log line\r\n"})
+			if err != nil {
+				return
+			}
+		}
+	}))
+	defer server.Close()
+
+	client := New(Config{
+		Endpoint: server.URL,
+		Token:    "test-token",
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ch, err := client.Services.StreamLogs(ctx, StreamLogsParams{
+		ProjectName: "proj",
+		ServiceName: "svc",
+		Token:       "tok",
+	})
+	require.NoError(t, err)
+
+	// Read one message to confirm stream works.
+	msg := <-ch
+	assert.Equal(t, "log line\r\n", msg.Output)
+
+	// Cancel context — channel should close.
+	cancel()
+
+	// Drain remaining messages; channel must eventually close.
+	for range ch {
+	}
 }

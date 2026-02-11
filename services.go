@@ -1,6 +1,13 @@
 package easypanel
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"net/url"
+	"strconv"
+
+	"github.com/gorilla/websocket"
+)
 
 // ServicesService handles service-related API operations.
 type ServicesService struct {
@@ -29,6 +36,16 @@ func (s *ServicesService) Destroy(ctx context.Context, st ServiceType, params Se
 // Deploy triggers a deployment for a service.
 func (s *ServicesService) Deploy(ctx context.Context, st ServiceType, params SelectService) error {
 	return s.client.post(ctx, serviceRoute(routeDeployService, st), params, nil)
+}
+
+// Stop stops a running service.
+func (s *ServicesService) Stop(ctx context.Context, st ServiceType, params SelectService) error {
+	return s.client.post(ctx, serviceRoute(routeStopService, st), params, nil)
+}
+
+// Restart restarts a service.
+func (s *ServicesService) Restart(ctx context.Context, st ServiceType, params SelectService) error {
+	return s.client.post(ctx, serviceRoute(routeRestartService, st), params, nil)
 }
 
 // Disable disables a service.
@@ -136,4 +153,53 @@ func (s *ServicesService) GetServiceLogs(ctx context.Context, params SelectServi
 	var resp RestResponse[string]
 	err := s.client.get(ctx, routeGetServiceLogs, params, &resp)
 	return resp, err
+}
+
+// StreamLogs opens a WebSocket connection to stream real-time service logs.
+// It returns a read-only channel of LogMessage. The channel is closed when the
+// context is cancelled, the server closes the connection, or a read error occurs.
+func (s *ServicesService) StreamLogs(ctx context.Context, params StreamLogsParams) (<-chan LogMessage, error) {
+	// Build WebSocket URL from the base HTTP URL.
+	u, err := url.Parse(s.client.baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("easypanel: invalid base url: %w", err)
+	}
+
+	switch u.Scheme {
+	case "https":
+		u.Scheme = "wss"
+	default:
+		u.Scheme = "ws"
+	}
+
+	u.Path = "/ws/serviceLogs"
+	q := u.Query()
+	q.Set("token", params.Token)
+	q.Set("service", params.ProjectName+"_"+params.ServiceName)
+	q.Set("compose", strconv.FormatBool(params.Compose))
+	u.RawQuery = q.Encode()
+
+	conn, _, err := websocket.DefaultDialer.DialContext(ctx, u.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("easypanel: websocket dial: %w", err)
+	}
+
+	ch := make(chan LogMessage)
+	go func() {
+		defer close(ch)
+		defer conn.Close()
+		for {
+			var msg LogMessage
+			if err := conn.ReadJSON(&msg); err != nil {
+				return
+			}
+			select {
+			case ch <- msg:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return ch, nil
 }

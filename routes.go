@@ -62,6 +62,8 @@ const (
 	routeInspectService      = "/api/trpc/services.{type}.inspectService"
 	routeDestroyService      = "/api/trpc/services.{type}.destroyService"
 	routeDeployService       = "/api/trpc/services.{type}.deployService"
+	routeStopService         = "/api/trpc/services.{type}.stopService"
+	routeRestartService      = "/api/trpc/services.{type}.restartService"
 	routeDisableService      = "/api/trpc/services.{type}.disableService"
 	routeEnableService       = "/api/trpc/services.{type}.enableService"
 	routeExposeService       = "/api/trpc/services.{type}.exposeService"

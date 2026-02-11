@@ -502,14 +502,21 @@ type UpdateSourceGitCompose struct {
 
 // Action represents a deployment action.
 type Action struct {
-	ID          string `json:"id"`
-	Type        string `json:"type"`
-	Status      string `json:"status"` // "success", "error", "running"
-	ProjectName string `json:"projectName"`
-	ServiceName string `json:"serviceName"`
-	ServiceType string `json:"serviceType"`
-	CreatedAt   string `json:"createdAt"`
-	UpdatedAt   string `json:"updatedAt"`
+	ID             string  `json:"id"`
+	Type           string  `json:"type"`
+	Status         string  `json:"status"` // "done", "error", "running"
+	ProjectName    string  `json:"projectName"`
+	ServiceName    string  `json:"serviceName"`
+	Description    string  `json:"description"`
+	Meta           *string `json:"meta"`
+	NoKill         *bool   `json:"noKill"`
+	NoLogs         *bool   `json:"noLogs"`
+	UserID         string  `json:"userId"`
+	IsApiAction    *bool   `json:"isApiAction"`
+	IsSystemAction *bool   `json:"isSystemAction"`
+	CreatedAt      string  `json:"createdAt"`
+	UpdatedAt      string  `json:"updatedAt"`
+	UserEmail      string  `json:"userEmail"`
 }
 
 // ActionDetail represents detailed information about an action including logs.
@@ -522,9 +529,26 @@ type ActionDetail struct {
 type ListActionsParams struct {
 	ProjectName string `json:"projectName"`
 	ServiceName string `json:"serviceName"`
+	Type        string `json:"type,omitempty"`
+	Limit       int    `json:"limit,omitempty"`
 }
 
 // GetActionParams contains parameters for getting a single action.
 type GetActionParams struct {
-	ActionID string `json:"actionId"`
+	ID string `json:"id"`
+}
+
+// --- Streaming Log Types ---
+
+// LogMessage represents a single log message from the WebSocket stream.
+type LogMessage struct {
+	Output string `json:"output"`
+}
+
+// StreamLogsParams contains parameters for streaming service logs.
+type StreamLogsParams struct {
+	ProjectName string
+	ServiceName string
+	Token       string // Service deploy token (Service.Token)
+	Compose     bool
 }
