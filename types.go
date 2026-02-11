@@ -449,7 +449,7 @@ type ServiceDestination struct {
 
 // Domain represents a domain configuration in the newer Easypanel API.
 type Domain struct {
-	ID                  string              `json:"id,omitempty"`
+	ID                  string              `json:"id"`
 	HTTPS               bool                `json:"https"`
 	Host                string              `json:"host"`
 	Path                string              `json:"path"`
