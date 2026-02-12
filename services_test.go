@@ -226,7 +226,8 @@ func TestServicesUpdateEnv(t *testing.T) {
 			ProjectName: "proj",
 			ServiceName: "svc",
 		},
-		Env: "KEY=value",
+		Env:          "KEY=value",
+		CreateDotEnv: true,
 	}
 
 	client := setupTestClient(t, func(w http.ResponseWriter, r *http.Request) {
@@ -242,6 +243,39 @@ func TestServicesUpdateEnv(t *testing.T) {
 	})
 
 	err := client.Services.UpdateEnv(context.Background(), ServiceTypeApp, params)
+	require.NoError(t, err)
+}
+
+func TestServicesUpdateRedirects(t *testing.T) {
+	params := UpdateRedirects{
+		SelectService: SelectService{
+			ProjectName: "proj",
+			ServiceName: "svc",
+		},
+		Redirects: []RedirectParams{
+			{
+				Name:        "Old Domain to New Domain",
+				Enabled:     true,
+				Regex:       "^https?://old-domain.com/(.*)",
+				Replacement: "https://new-domain.com/${1}",
+				Permanent:   false,
+			},
+		},
+	}
+
+	client := setupTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/api/trpc/services.app.updateRedirects", r.URL.Path)
+		assert.Equal(t, "test-token", r.Header.Get("Authorization"))
+
+		var body UpdateRedirects
+		decodeTRPCBody(t, r, &body)
+		assert.Equal(t, params, body)
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	err := client.Services.UpdateRedirects(context.Background(), ServiceTypeApp, params)
 	require.NoError(t, err)
 }
 

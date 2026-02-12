@@ -111,6 +111,8 @@ type DomainParams struct {
 
 // RedirectParams represents a redirect rule.
 type RedirectParams struct {
+	Name        string `json:"name,omitempty"`
+	Enabled     bool   `json:"enabled"`
 	Regex       string `json:"regex"`
 	Replacement string `json:"replacement"`
 	Permanent   bool   `json:"permanent"`
@@ -231,7 +233,8 @@ type UpdateImage struct {
 // UpdateEnv contains parameters for updating environment variables.
 type UpdateEnv struct {
 	SelectService
-	Env string `json:"env"`
+	Env          string `json:"env"`
+	CreateDotEnv bool   `json:"createDotEnv"`
 }
 
 // UpdateRedirects contains parameters for updating redirect rules.
@@ -454,7 +457,7 @@ type Domain struct {
 	Host                string              `json:"host"`
 	Path                string              `json:"path"`
 	Middlewares         []string            `json:"middlewares"`
-	CertificateResolver string             `json:"certificateResolver"`
+	CertificateResolver string              `json:"certificateResolver"`
 	Wildcard            bool                `json:"wildcard"`
 	DestinationType     string              `json:"destinationType"`
 	ServiceDestination  *ServiceDestination `json:"serviceDestination,omitempty"`
