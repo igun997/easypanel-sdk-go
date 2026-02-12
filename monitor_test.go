@@ -102,9 +102,17 @@ func TestMonitorGetMonitorTableData(t *testing.T) {
 		{
 			ID: "abc123",
 			Stats: ContainerStat{
-				CPU:     struct{ Percent float64 `json:"percent"` }{Percent: 25.5},
-				Memory:  struct{ Usage int `json:"usage"`; Percent float64 `json:"percent"` }{Usage: 512000000, Percent: 48.2},
-				Network: struct{ In int `json:"in"`; Out int `json:"out"` }{In: 10240, Out: 20480},
+				CPU: struct {
+					Percent float64 `json:"percent"`
+				}{Percent: 25.5},
+				Memory: struct {
+					Usage   int     `json:"usage"`
+					Percent float64 `json:"percent"`
+				}{Usage: 512000000, Percent: 48.2},
+				Network: struct {
+					In  int `json:"in"`
+					Out int `json:"out"`
+				}{In: 10240, Out: 20480},
 			},
 			ProjectName:   "myproject",
 			ServiceName:   "web",
@@ -113,9 +121,17 @@ func TestMonitorGetMonitorTableData(t *testing.T) {
 		{
 			ID: "def456",
 			Stats: ContainerStat{
-				CPU:     struct{ Percent float64 `json:"percent"` }{Percent: 5.1},
-				Memory:  struct{ Usage int `json:"usage"`; Percent float64 `json:"percent"` }{Usage: 128000000, Percent: 12.0},
-				Network: struct{ In int `json:"in"`; Out int `json:"out"` }{In: 500, Out: 1500},
+				CPU: struct {
+					Percent float64 `json:"percent"`
+				}{Percent: 5.1},
+				Memory: struct {
+					Usage   int     `json:"usage"`
+					Percent float64 `json:"percent"`
+				}{Usage: 128000000, Percent: 12.0},
+				Network: struct {
+					In  int `json:"in"`
+					Out int `json:"out"`
+				}{In: 500, Out: 1500},
 			},
 			ProjectName:   "myproject",
 			ServiceName:   "db",
@@ -187,6 +203,11 @@ func TestMonitorGetSystemStats(t *testing.T) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "/api/trpc/monitor.getSystemStats", r.URL.Path)
 		assert.Equal(t, "test-token", r.Header.Get("Authorization"))
+
+		// Ensure input parameter is present and equals {"json":null}
+		inputRaw := r.URL.Query().Get("input")
+		require.NotEmpty(t, inputRaw, "input query param should be set")
+		assert.JSONEq(t, `{"json":null}`, inputRaw)
 
 		writeJSON(t, w, newRestResponse(want))
 	})

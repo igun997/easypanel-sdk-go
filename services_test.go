@@ -246,6 +246,31 @@ func TestServicesUpdateEnv(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestServicesUpdateSourceDockerfile(t *testing.T) {
+	params := UpdateDockerfile{
+		SelectService: SelectService{
+			ProjectName: "proj",
+			ServiceName: "svc",
+		},
+		Dockerfile: "FROM node:18\nRUN npm install",
+	}
+
+	client := setupTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/api/trpc/services.app.updateSourceDockerfile", r.URL.Path)
+		assert.Equal(t, "test-token", r.Header.Get("Authorization"))
+
+		var body UpdateDockerfile
+		decodeTRPCBody(t, r, &body)
+		assert.Equal(t, params, body)
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	err := client.Services.UpdateSourceDockerfile(context.Background(), ServiceTypeApp, params)
+	require.NoError(t, err)
+}
+
 func TestServicesUpdateRedirects(t *testing.T) {
 	params := UpdateRedirects{
 		SelectService: SelectService{

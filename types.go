@@ -230,6 +230,12 @@ type UpdateImage struct {
 	Password    string `json:"password,omitempty"`
 }
 
+// UpdateDockerfile contains parameters for updating Dockerfile source.
+type UpdateDockerfile struct {
+	SelectService
+	Dockerfile string `json:"dockerfile"`
+}
+
 // UpdateEnv contains parameters for updating environment variables.
 type UpdateEnv struct {
 	SelectService

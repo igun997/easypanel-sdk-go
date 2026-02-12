@@ -30,6 +30,7 @@ func newHTTPClient(baseURL, token string) *httpClient {
 // trpcInput wraps a value in the tRPC envelope: {"json": value}
 type trpcInput struct {
 	JSON any `json:"json"`
+	Meta any `json:"meta,omitempty"`
 }
 
 // get performs a GET request. If input is non-nil, it is JSON-encoded as {"json": input}
@@ -40,16 +41,15 @@ func (c *httpClient) get(ctx context.Context, route string, input any, result an
 		return fmt.Errorf("easypanel: invalid url: %w", err)
 	}
 
-	if input != nil {
-		envelope := trpcInput{JSON: input}
-		inputJSON, err := json.Marshal(envelope)
-		if err != nil {
-			return fmt.Errorf("easypanel: marshal input: %w", err)
-		}
-		q := u.Query()
-		q.Set("input", string(inputJSON))
-		u.RawQuery = q.Encode()
+	// Always send input envelope, even if input is nil (as null)
+	envelope := trpcInput{JSON: input}
+	inputJSON, err := json.Marshal(envelope)
+	if err != nil {
+		return fmt.Errorf("easypanel: marshal input: %w", err)
 	}
+	q := u.Query()
+	q.Set("input", string(inputJSON))
+	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {

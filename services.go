@@ -83,6 +83,11 @@ func (s *ServicesService) UpdateSourceImage(ctx context.Context, st ServiceType,
 	return s.client.post(ctx, serviceRoute(routeUpdateSourceImage, st), params, nil)
 }
 
+// UpdateSourceDockerfile updates the Dockerfile source configuration.
+func (s *ServicesService) UpdateSourceDockerfile(ctx context.Context, st ServiceType, params UpdateDockerfile) error {
+	return s.client.post(ctx, serviceRoute(routeUpdateSourceDockerfile, st), params, nil)
+}
+
 // UpdateBuild updates the build configuration for a service.
 func (s *ServicesService) UpdateBuild(ctx context.Context, st ServiceType, params UpdateBuildParams) error {
 	return s.client.post(ctx, serviceRoute(routeUpdateBuild, st), params, nil)
